@@ -838,7 +838,7 @@ mod tests {
         let resp = IpcMessage::Created {
             name: "test".to_string(),
             network_key: key,
-            my_ip: Ipv4Addr::new(100, 64, 10, 5),
+            my_ip: Ipv4Addr::new(10, 64, 10, 5),
             my_ipv6: None,
         };
         let bytes = rmp_serde::to_vec_named(&resp).unwrap();
@@ -852,7 +852,7 @@ mod tests {
             } => {
                 assert_eq!(name, "test");
                 assert_eq!(network_key, key);
-                assert_eq!(my_ip, Ipv4Addr::new(100, 64, 10, 5));
+                assert_eq!(my_ip, Ipv4Addr::new(10, 64, 10, 5));
             }
             _ => panic!("wrong variant"),
         }
@@ -1001,14 +1001,14 @@ mod tests {
             networks: vec![NetworkStatus {
                 name: "gaming".to_string(),
                 role: NetworkRole::Coordinator,
-                my_ip: Ipv4Addr::new(100, 64, 10, 5),
+                my_ip: Ipv4Addr::new(10, 64, 10, 5),
                 my_ipv6: None,
                 my_hostname: Some("alice".to_string()),
                 network_key: Some("abc123".to_string()),
                 member_count: 2,
                 peers: vec![PeerStatus {
                     endpoint_id: peer_id,
-                    ip: Ipv4Addr::new(100, 64, 10, 6),
+                    ip: Ipv4Addr::new(10, 64, 10, 6),
                     ipv6: None,
                     hostname: None,
                     user_identity: None,

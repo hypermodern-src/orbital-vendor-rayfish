@@ -83,8 +83,12 @@ pub struct TunWriter {
 
 #[cfg(not(target_os = "android"))]
 fn is_cgnat(ip: Ipv4Addr) -> bool {
+    // straylight fork: rayfish's v4 overlay was moved off 100.64.0.0/10 (Tailscale's
+    // CGNAT block) to 10.64.0.0/10 so the two can coexist on one host (rayfish is our
+    // no-IPMI fallback for when the tailnet is down). This preflight now guards OUR
+    // 10.64/10 range; Tailscale's 100.64/10 no longer trips it.
     let octets = ip.octets();
-    octets[0] == 100 && (octets[1] & 0xC0) == 64
+    octets[0] == 10 && (octets[1] & 0xC0) == 64
 }
 
 #[cfg(not(target_os = "android"))]
@@ -114,9 +118,9 @@ pub fn check_cgnat_conflict() -> Result<()> {
                 && is_cgnat(ip)
             {
                 bail!(
-                    "interface {} already has CGNAT address {} — another VPN \
-                     (e.g. Tailscale) is using the 100.64.0.0/10 range. \
-                     Disable it before starting rayfish.",
+                    "interface {} already has an address {} in rayfish's \
+                     10.64.0.0/10 overlay range — another daemon is squatting \
+                     on it. Free the range before starting rayfish.",
                     current_iface,
                     ip
                 );
@@ -128,13 +132,13 @@ pub fn check_cgnat_conflict() -> Result<()> {
 }
 
 /// Creates a TUN device with the given virtual IPs and shares it between
-/// independent read/write halves. IPv4 gets a /10 (100.64.0.0/10); IPv6 gets our
+/// independent read/write halves. IPv4 gets a /10 (10.64.0.0/10); IPv6 gets our
 /// own /128 address. The `200::/7` peer range is routed in separately by
 /// [`route_peer_range`] after link-up (the kernel does not reliably install an
 /// IPv6 connected route while the link is down), mirroring how the IPv4 /10 works.
 #[cfg(not(target_os = "android"))]
 pub async fn create(v4: Ipv4Addr, v6: Ipv6Addr) -> Result<(TunReader, TunWriter, String)> {
-    let gateway = Ipv4Addr::new(100, 64, 0, 1);
+    let gateway = Ipv4Addr::new(10, 64, 0, 1);
     // `10` is the /10 prefix (was the (255,192,0,0) netmask); `Some(gateway)` is
     // the point-to-point destination. `ipv6(v6, 128)` assigns just our own
     // address (a /128, no connected route) cross-platform, replacing the old
@@ -162,9 +166,9 @@ pub async fn create(v4: Ipv4Addr, v6: Ipv6Addr) -> Result<(TunReader, TunWriter,
 /// up (see [`set_link_up`]). On Linux only the IPv6 `200::/7` route needs adding:
 /// the kernel does not reliably install an IPv6 connected route while the link is
 /// down (peer traffic would otherwise leak out the host's default IPv6 route),
-/// whereas it re-installs the IPv4 `100.64.0.0/10` connected route from the /10
+/// whereas it re-installs the IPv4 `10.64.0.0/10` connected route from the /10
 /// netmask automatically on link-up. On macOS the point-to-point utun installs
-/// neither range reliably, so *both* `100.64.0.0/10` and `200::/7` are added
+/// neither range reliably, so *both* `10.64.0.0/10` and `200::/7` are added
 /// explicitly. Idempotent, safe to call on every `up` cycle.
 #[cfg(target_os = "linux")]
 pub async fn route_peer_range(tun_name: &str) -> Result<()> {
@@ -216,7 +220,7 @@ pub async fn route_peer_range(tun_name: &str) -> Result<()> {
     // re-add it on every activate or peers become unreachable over IPv4 while
     // IPv6 still works. `route add` fails if the route already exists (e.g. an
     // earlier `up`), so delete any stale entry first and ignore its result.
-    for (family, net) in [("-inet", "100.64.0.0/10"), ("-inet6", "200::/7")] {
+    for (family, net) in [("-inet", "10.64.0.0/10"), ("-inet6", "200::/7")] {
         let _ = Command::new("route")
             .args(["-n", "delete", family, "-net", net, "-interface", tun_name])
             .status();

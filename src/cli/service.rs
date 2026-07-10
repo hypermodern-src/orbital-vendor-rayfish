@@ -160,7 +160,7 @@ pub(crate) async fn install_and_start_service(hostname: Option<String>) -> Resul
             eprintln!(
                 "rayfish service was started but the daemon never became reachable.\n\
                  It likely crashed on startup — a common cause is another VPN (e.g. Tailscale)\n\
-                 already using the 100.64.0.0/10 range, DNS port 53, or a conflicting route."
+                 already using the 10.64.0.0/10 range, DNS port 53, or a conflicting route."
             );
             print_daemon_log_tail();
             std::process::exit(1);

@@ -644,7 +644,7 @@ mod prune_tests {
         let id = SecretKey::from(key_bytes).public();
         Member {
             identity: id,
-            ip: std::net::Ipv4Addr::new(100, 64, 0, 2),
+            ip: std::net::Ipv4Addr::new(10, 64, 0, 2),
             is_coordinator,
             hostname: None,
             user_identity: None,

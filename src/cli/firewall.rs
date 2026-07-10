@@ -855,7 +855,7 @@ mod tests {
     fn peer(hostname: &str, user: Option<iroh::EndpointId>) -> ipc::PeerStatus {
         ipc::PeerStatus {
             endpoint_id: iroh::SecretKey::generate().public(),
-            ip: Ipv4Addr::new(100, 64, 0, 2),
+            ip: Ipv4Addr::new(10, 64, 0, 2),
             ipv6: None,
             hostname: Some(hostname.to_string()),
             user_identity: user,
@@ -869,7 +869,7 @@ mod tests {
         ipc::NetworkStatus {
             name: "n".to_string(),
             role: ipc::NetworkRole::Member,
-            my_ip: Ipv4Addr::new(100, 64, 0, 1),
+            my_ip: Ipv4Addr::new(10, 64, 0, 1),
             my_ipv6: None,
             my_hostname: my_hostname.map(|s| s.to_string()),
             network_key: None,

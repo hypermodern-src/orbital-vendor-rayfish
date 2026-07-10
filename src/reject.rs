@@ -314,8 +314,8 @@ mod tests {
         p[0] = 0x45;
         p[2..4].copy_from_slice(&((IPV4_HEADER_LEN + TCP_HEADER_LEN) as u16).to_be_bytes());
         p[9] = PROTO_TCP;
-        p[12..16].copy_from_slice(&Ipv4Addr::new(100, 64, 0, 5).octets()); // src
-        p[16..20].copy_from_slice(&Ipv4Addr::new(100, 64, 0, 9).octets()); // dst
+        p[12..16].copy_from_slice(&Ipv4Addr::new(10, 64, 0, 5).octets()); // src
+        p[16..20].copy_from_slice(&Ipv4Addr::new(10, 64, 0, 9).octets()); // dst
         let t = IPV4_HEADER_LEN;
         p[t..t + 2].copy_from_slice(&44321u16.to_be_bytes()); // src port
         p[t + 2..t + 4].copy_from_slice(&8080u16.to_be_bytes()); // dst port
@@ -384,8 +384,8 @@ mod tests {
         p[0] = 0x45;
         p[2..4].copy_from_slice(&((IPV4_HEADER_LEN + 8) as u16).to_be_bytes());
         p[9] = 17;
-        p[12..16].copy_from_slice(&Ipv4Addr::new(100, 64, 0, 5).octets());
-        p[16..20].copy_from_slice(&Ipv4Addr::new(100, 64, 0, 9).octets());
+        p[12..16].copy_from_slice(&Ipv4Addr::new(10, 64, 0, 5).octets());
+        p[16..20].copy_from_slice(&Ipv4Addr::new(10, 64, 0, 9).octets());
         let u = IPV4_HEADER_LEN;
         p[u..u + 2].copy_from_slice(&33333u16.to_be_bytes());
         p[u + 2..u + 4].copy_from_slice(&53u16.to_be_bytes());
@@ -418,8 +418,8 @@ mod tests {
         p[0] = 0x45;
         p[2..4].copy_from_slice(&((IPV4_HEADER_LEN + 8) as u16).to_be_bytes());
         p[9] = PROTO_ICMPV4;
-        p[12..16].copy_from_slice(&Ipv4Addr::new(100, 64, 0, 5).octets());
-        p[16..20].copy_from_slice(&Ipv4Addr::new(100, 64, 0, 9).octets());
+        p[12..16].copy_from_slice(&Ipv4Addr::new(10, 64, 0, 5).octets());
+        p[16..20].copy_from_slice(&Ipv4Addr::new(10, 64, 0, 9).octets());
         p[IPV4_HEADER_LEN] = 11; // time exceeded
         let info = parse_packet_info(&p).unwrap();
         assert!(build_reject(&p, &info).is_none());

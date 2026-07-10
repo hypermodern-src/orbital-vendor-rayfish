@@ -119,8 +119,8 @@ mod tests {
     #[test]
     fn build_udp_reply_swaps_and_checksums() {
         let query = crate::firewall::PacketInfo {
-            src_ip: IpAddr::V4(Ipv4Addr::new(100, 64, 0, 5)), // the app
-            dst_ip: IpAddr::V4(Ipv4Addr::new(100, 100, 100, 53)), // magic IP
+            src_ip: IpAddr::V4(Ipv4Addr::new(10, 64, 0, 5)), // the app
+            dst_ip: IpAddr::V4(Ipv4Addr::new(10, 100, 100, 53)), // magic IP
             protocol: 17,
             src_port: 51000,
             dst_port: 53,
@@ -145,8 +145,8 @@ mod tests {
     #[test]
     fn build_udp_reply_rejects_oversize() {
         let query = crate::firewall::PacketInfo {
-            src_ip: IpAddr::V4(Ipv4Addr::new(100, 64, 0, 5)),
-            dst_ip: IpAddr::V4(Ipv4Addr::new(100, 100, 100, 53)),
+            src_ip: IpAddr::V4(Ipv4Addr::new(10, 64, 0, 5)),
+            dst_ip: IpAddr::V4(Ipv4Addr::new(10, 100, 100, 53)),
             protocol: 17,
             src_port: 51000,
             dst_port: 53,

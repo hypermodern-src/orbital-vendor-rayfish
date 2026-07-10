@@ -1189,8 +1189,8 @@ mod tests {
         // unsolicited inbound TCP SYN is denied, but return traffic for an
         // outbound flow we initiated is allowed.
         let fw = SharedFirewall::new(FirewallConfig::default());
-        let me = Ipv4Addr::new(100, 64, 0, 2);
-        let peer = Ipv4Addr::new(100, 64, 0, 3);
+        let me = Ipv4Addr::new(10, 64, 0, 2);
+        let peer = Ipv4Addr::new(10, 64, 0, 3);
         let peer_id = test_id(1);
 
         // Unsolicited inbound -> denied.
@@ -1234,8 +1234,8 @@ mod tests {
             disabled: true,
             ..FirewallConfig::default()
         });
-        let me = Ipv4Addr::new(100, 64, 0, 2);
-        let peer = Ipv4Addr::new(100, 64, 0, 3);
+        let me = Ipv4Addr::new(10, 64, 0, 2);
+        let peer = Ipv4Addr::new(10, 64, 0, 3);
         let peer_id = test_id(1);
         // Unsolicited inbound TCP would be denied when enforcing; here it passes.
         let unsolicited = tcp_pkt(peer, 51000, me, 8080, SYN);
@@ -1267,8 +1267,8 @@ mod tests {
             }],
             ..FirewallConfig::default()
         });
-        let me = Ipv4Addr::new(100, 64, 0, 2);
-        let peer = Ipv4Addr::new(100, 64, 0, 3);
+        let me = Ipv4Addr::new(10, 64, 0, 2);
+        let peer = Ipv4Addr::new(10, 64, 0, 3);
         let ssh = tcp_pkt(peer, 51000, me, 22, SYN);
         assert_eq!(
             fw.evaluate_packet(Direction::In, &ssh, &test_id(1), None),
@@ -1606,8 +1606,8 @@ mod tests {
                 origin: RuleOrigin::Local,
             }],
         });
-        let me = Ipv4Addr::new(100, 64, 0, 2);
-        let peer = Ipv4Addr::new(100, 64, 0, 3);
+        let me = Ipv4Addr::new(10, 64, 0, 2);
+        let peer = Ipv4Addr::new(10, 64, 0, 3);
         let peer_id = test_id(1);
 
         // Unsolicited inbound to port 22 -> blocked.
@@ -1654,8 +1654,8 @@ mod tests {
                 origin: RuleOrigin::Local,
             }],
         });
-        let me = Ipv4Addr::new(100, 64, 0, 2);
-        let peer = Ipv4Addr::new(100, 64, 0, 3);
+        let me = Ipv4Addr::new(10, 64, 0, 2);
+        let peer = Ipv4Addr::new(10, 64, 0, 3);
         let peer_id = test_id(1);
 
         // We initiate HTTPS: outbound SYN me:50000 -> peer:443, allowed by rule.
@@ -1714,8 +1714,8 @@ mod tests {
                 origin: RuleOrigin::Local,
             }],
         });
-        let me = Ipv4Addr::new(100, 64, 0, 2);
-        let peer = Ipv4Addr::new(100, 64, 0, 3);
+        let me = Ipv4Addr::new(10, 64, 0, 2);
+        let peer = Ipv4Addr::new(10, 64, 0, 3);
         let peer_id = test_id(2);
 
         // Establish the flow.
@@ -1762,8 +1762,8 @@ mod tests {
                 origin: RuleOrigin::Local,
             }],
         });
-        let me = Ipv4Addr::new(100, 64, 0, 2);
-        let peer = Ipv4Addr::new(100, 64, 0, 3);
+        let me = Ipv4Addr::new(10, 64, 0, 2);
+        let peer = Ipv4Addr::new(10, 64, 0, 3);
         let peer_id = test_id(3);
 
         // Outbound DNS query me:53000 -> peer:53.
@@ -1807,8 +1807,8 @@ mod tests {
                 origin: RuleOrigin::Local,
             }],
         });
-        let me = Ipv4Addr::new(100, 64, 0, 2);
-        let peer = Ipv4Addr::new(100, 64, 0, 3);
+        let me = Ipv4Addr::new(10, 64, 0, 2);
+        let peer = Ipv4Addr::new(10, 64, 0, 3);
         let bad_peer = test_id(9);
 
         // Even if we (somehow) had an outbound flow to bad_peer, inbound from
@@ -1824,8 +1824,8 @@ mod tests {
 
     #[test]
     fn parse_packet_extracts_tcp_flags() {
-        let me = Ipv4Addr::new(100, 64, 0, 2);
-        let peer = Ipv4Addr::new(100, 64, 0, 3);
+        let me = Ipv4Addr::new(10, 64, 0, 2);
+        let peer = Ipv4Addr::new(10, 64, 0, 3);
         let syn = tcp_pkt(me, 1000, peer, 443, SYN);
         assert_eq!(syn.tcp_flags & SYN, SYN);
         assert_eq!(syn.tcp_flags & ACK, 0);
@@ -1853,8 +1853,8 @@ mod tests {
                 origin: RuleOrigin::Local,
             }],
         });
-        let me = Ipv4Addr::new(100, 64, 0, 2);
-        let peer = Ipv4Addr::new(100, 64, 0, 3);
+        let me = Ipv4Addr::new(10, 64, 0, 2);
+        let peer = Ipv4Addr::new(10, 64, 0, 3);
         let peer_id = test_id(4);
 
         let syn = tcp_pkt(me, 50000, peer, 443, SYN);
@@ -1929,8 +1929,8 @@ mod tests {
             disabled: false,
             rules: vec![], // seeded allow-icmp removed
         });
-        let me = Ipv4Addr::new(100, 64, 0, 2);
-        let peer = Ipv4Addr::new(100, 64, 0, 3);
+        let me = Ipv4Addr::new(10, 64, 0, 2);
+        let peer = Ipv4Addr::new(10, 64, 0, 3);
         let peer_id = test_id(1);
 
         // We ping the peer: outbound echo-request, allowed (default) + tracked.
@@ -1960,8 +1960,8 @@ mod tests {
             disabled: false,
             rules: vec![],
         });
-        let me = Ipv4Addr::new(100, 64, 0, 2);
-        let peer = Ipv4Addr::new(100, 64, 0, 3);
+        let me = Ipv4Addr::new(10, 64, 0, 2);
+        let peer = Ipv4Addr::new(10, 64, 0, 3);
         let peer_id = test_id(1);
 
         let out_req = icmp_pkt(me, peer, ECHO_REQUEST_V4, 0x1234);
@@ -1988,8 +1988,8 @@ mod tests {
             disabled: false,
             rules: vec![],
         });
-        let me = Ipv4Addr::new(100, 64, 0, 2);
-        let peer = Ipv4Addr::new(100, 64, 0, 3);
+        let me = Ipv4Addr::new(10, 64, 0, 2);
+        let peer = Ipv4Addr::new(10, 64, 0, 3);
         let peer_id = test_id(1);
 
         let out_req = icmp_pkt(me, peer, ECHO_REQUEST_V4, 0x1111);
@@ -2013,8 +2013,8 @@ mod tests {
             disabled: false,
             rules: vec![],
         });
-        let me = Ipv4Addr::new(100, 64, 0, 2);
-        let peer = Ipv4Addr::new(100, 64, 0, 3);
+        let me = Ipv4Addr::new(10, 64, 0, 2);
+        let peer = Ipv4Addr::new(10, 64, 0, 3);
         let peer_id = test_id(1);
 
         // We emit an outbound echo-reply (id chosen by the original requester).

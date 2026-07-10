@@ -162,7 +162,7 @@ mod tests {
             &reverse,
             "homelab",
             "dario",
-            Ipv4Addr::new(100, 64, 0, 7),
+            Ipv4Addr::new(10, 64, 0, 7),
             "200::7".parse().unwrap(),
         )
         .await;
@@ -172,7 +172,7 @@ mod tests {
         // in reverse: synthesize a query with src=app, dst=magic).
         let dns_query = build_a_query("dario.homelab.ray");
         let app = crate::firewall::PacketInfo {
-            src_ip: IpAddr::V4(Ipv4Addr::new(100, 64, 0, 5)),
+            src_ip: IpAddr::V4(Ipv4Addr::new(10, 64, 0, 5)),
             dst_ip: IpAddr::V4(crate::dns::MAGIC_DNS_V4),
             protocol: 17,
             src_port: 50000,
@@ -202,7 +202,7 @@ mod tests {
         let rinfo = crate::firewall::parse_packet_info(&reply).unwrap();
         assert_eq!(rinfo.src_ip, IpAddr::V4(crate::dns::MAGIC_DNS_V4));
         assert_eq!(rinfo.dst_port, 50000);
-        assert!(response_has_a(&reply[28..], Ipv4Addr::new(100, 64, 0, 7)));
+        assert!(response_has_a(&reply[28..], Ipv4Addr::new(10, 64, 0, 7)));
     }
 
     #[tokio::test]
@@ -213,7 +213,7 @@ mod tests {
         );
         let (tx, mut rx) = tokio::sync::mpsc::channel(4);
         let info = crate::firewall::PacketInfo {
-            src_ip: "100.64.0.5".parse().unwrap(),
+            src_ip: "10.64.0.5".parse().unwrap(),
             dst_ip: std::net::IpAddr::V4(crate::dns::MAGIC_DNS_V4),
             protocol: 6,
             src_port: 50000,
@@ -235,7 +235,7 @@ mod tests {
             &reverse,
             "homelab",
             "dario",
-            Ipv4Addr::new(100, 64, 0, 7),
+            Ipv4Addr::new(10, 64, 0, 7),
             "200::7".parse().unwrap(),
         )
         .await;
@@ -243,7 +243,7 @@ mod tests {
         // No upstreams set; a .ray name must still resolve locally.
         let query = build_a_query("dario.homelab.ray");
         let resp = r.resolve(&query).await.expect("local answer");
-        assert!(response_has_a(&resp, Ipv4Addr::new(100, 64, 0, 7)));
+        assert!(response_has_a(&resp, Ipv4Addr::new(10, 64, 0, 7)));
     }
 
     #[tokio::test]

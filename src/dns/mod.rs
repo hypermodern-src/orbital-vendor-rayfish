@@ -2,7 +2,7 @@
 //!
 //! This module (`mod.rs`) is the `.ray` responder: it answers A, AAAA, PTR, and
 //! SOA queries for `*.ray` names. The resolver is reached via a magic IP
-//! (`MAGIC_DNS_V4` = 100.100.100.53) routed through the TUN, no host-level port
+//! (`MAGIC_DNS_V4` = 10.100.100.53) routed through the TUN, no host-level port
 //! 53 bind is made. `handle_query` is called directly by `forward::run_mesh`
 //! when it intercepts a UDP DNS packet destined for the magic IP.
 //!
@@ -28,12 +28,12 @@ use simple_dns::{
 use crate::DNS_DOMAIN;
 
 /// Reserved virtual IPv4 for the in-daemon Magic DNS resolver. It lives in the
-/// `100.64.0.0/10` peer range (so the existing TUN route delivers packets to it)
+/// `10.64.0.0/10` peer range (so the existing TUN route delivers packets to it)
 /// but is NEVER assigned to a member and NEVER bound as a local interface
 /// address, it is reachable only by being routed into the TUN, which is what
 /// lets us answer DNS without competing for the host's port 53. Distinct from
 /// Tailscale's 100.100.100.100 so both can coexist.
-pub const MAGIC_DNS_V4: Ipv4Addr = Ipv4Addr::new(100, 100, 100, 53);
+pub const MAGIC_DNS_V4: Ipv4Addr = Ipv4Addr::new(10, 100, 100, 53);
 
 /// Per-network hostname → (IPv4, IPv6) mapping.
 pub type HostnameEntry = (Ipv4Addr, Ipv6Addr);
@@ -233,8 +233,8 @@ async fn handle_ptr_query(
     match ip {
         IpAddr::V4(v4) => {
             let octets = v4.octets();
-            // 100.64.0.0/10
-            if octets[0] == 100 && (octets[1] & 0xC0) == 64 {
+            // 10.64.0.0/10 (straylight fork overlay range)
+            if octets[0] == 10 && (octets[1] & 0xC0) == 64 {
                 tracing::info!(ip = %ip, "DNS PTR NXDOMAIN (our range)");
                 return Some(make_nxdomain(packet));
             }
@@ -450,14 +450,11 @@ mod tests {
         {
             let mut t = table.write().await;
             let mut hosts = HashMap::new();
-            hosts.insert("alice".to_string(), entry(Ipv4Addr::new(100, 64, 10, 5)));
+            hosts.insert("alice".to_string(), entry(Ipv4Addr::new(10, 64, 10, 5)));
             t.insert("gaming".to_string(), hosts);
         }
         let result = resolve_name("alice.gaming.ray", SUFFIX, &table).await;
-        assert_eq!(
-            result.map(|(v4, _)| v4),
-            Some(Ipv4Addr::new(100, 64, 10, 5))
-        );
+        assert_eq!(result.map(|(v4, _)| v4), Some(Ipv4Addr::new(10, 64, 10, 5)));
     }
 
     #[tokio::test]
@@ -465,8 +462,8 @@ mod tests {
         let table = new_hostname_table();
         let reverse = new_reverse_table();
         let v6 = |n: u16| Ipv6Addr::new(0x0200, 0, 0, 0, 0, 0, 0, n);
-        let alice_v4 = Ipv4Addr::new(100, 64, 10, 5);
-        let bob_v4 = Ipv4Addr::new(100, 64, 10, 6);
+        let alice_v4 = Ipv4Addr::new(10, 64, 10, 5);
+        let bob_v4 = Ipv4Addr::new(10, 64, 10, 6);
 
         // Initial roster: alice + bob.
         sync_network_hostnames(
@@ -520,14 +517,11 @@ mod tests {
         {
             let mut t = table.write().await;
             let mut hosts = HashMap::new();
-            hosts.insert("bob".to_string(), entry(Ipv4Addr::new(100, 64, 20, 3)));
+            hosts.insert("bob".to_string(), entry(Ipv4Addr::new(10, 64, 20, 3)));
             t.insert("work".to_string(), hosts);
         }
         let result = resolve_name("bob.ray", SUFFIX, &table).await;
-        assert_eq!(
-            result.map(|(v4, _)| v4),
-            Some(Ipv4Addr::new(100, 64, 20, 3))
-        );
+        assert_eq!(result.map(|(v4, _)| v4), Some(Ipv4Addr::new(10, 64, 20, 3)));
     }
 
     #[tokio::test]
@@ -539,8 +533,8 @@ mod tests {
 
     #[test]
     fn test_parse_ptr_ipv4() {
-        let ip = parse_ptr_name("5.10.64.100.in-addr.arpa");
-        assert_eq!(ip, Some(IpAddr::V4(Ipv4Addr::new(100, 64, 10, 5))));
+        let ip = parse_ptr_name("5.10.64.10.in-addr.arpa");
+        assert_eq!(ip, Some(IpAddr::V4(Ipv4Addr::new(10, 64, 10, 5))));
     }
 
     #[test]
@@ -564,7 +558,7 @@ mod tests {
     async fn test_update_and_reverse_lookup() {
         let table = new_hostname_table();
         let reverse = new_reverse_table();
-        let v4 = Ipv4Addr::new(100, 64, 10, 5);
+        let v4 = Ipv4Addr::new(10, 64, 10, 5);
         let v6 = Ipv6Addr::new(0x0200, 0, 0, 0, 0, 0, 0, 1);
 
         update_hostname(&table, &reverse, "gaming", "alice", v4, v6).await;

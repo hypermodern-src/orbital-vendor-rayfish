@@ -174,7 +174,7 @@ async fn bind_endpoint(
     builder.bind().await.context("failed to bind iroh endpoint")
 }
 
-/// A [`DirectAddrFilter`] that drops rayfish overlay addresses (`100.64.0.0/10`,
+/// A [`DirectAddrFilter`] that drops rayfish overlay addresses (`10.64.0.0/10`,
 /// `200::/7`) from iroh's gathered direct-address candidates. The mesh IP is bound
 /// on the TUN device; without this iroh would discover it, advertise it (pkarr/DNS
 /// and in-band NAT-traversal), and peers would dial it, looping the underlay back
@@ -309,8 +309,8 @@ mod tests {
         // Real underlay / LAN addresses are kept.
         assert!(keeps("51.15.139.151"));
         assert!(keeps("192.168.1.104"));
-        // Overlay v4 (100.64.0.0/10) and v6 (200::/7) are dropped.
-        assert!(!keeps("100.124.253.88"));
+        // Overlay v4 (10.64.0.0/10) and v6 (200::/7) are dropped.
+        assert!(!keeps("10.124.253.88"));
         assert!(!keeps("200::1"));
     }
 

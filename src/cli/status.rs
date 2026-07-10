@@ -751,7 +751,7 @@ mod grouping_tests {
     ) -> ipc::PeerStatus {
         ipc::PeerStatus {
             endpoint_id: iroh::SecretKey::generate().public(),
-            ip: Ipv4Addr::new(100, 64, 0, 2),
+            ip: Ipv4Addr::new(10, 64, 0, 2),
             ipv6: None,
             hostname: Some(host.to_string()),
             user_identity: user,
@@ -765,7 +765,7 @@ mod grouping_tests {
         ipc::NetworkStatus {
             name: "n".to_string(),
             role: ipc::NetworkRole::Coordinator,
-            my_ip: Ipv4Addr::new(100, 64, 0, 1),
+            my_ip: Ipv4Addr::new(10, 64, 0, 1),
             my_ipv6: None,
             my_hostname: Some(my_hostname.to_string()),
             network_key: None,
@@ -816,7 +816,7 @@ mod grouping_tests {
         let dario = iroh::SecretKey::generate().public();
         let primary = ipc::PeerStatus {
             endpoint_id: dario,
-            ip: Ipv4Addr::new(100, 64, 0, 3),
+            ip: Ipv4Addr::new(10, 64, 0, 3),
             ipv6: None,
             hostname: Some("dario".to_string()),
             user_identity: None,

@@ -676,12 +676,12 @@ mod tests {
         let mut packet = vec![0u8; 24];
         packet[0] = 0x45;
         packet[9] = 6; // TCP
-        packet[16] = 100;
+        packet[16] = 10;
         packet[17] = 64;
         packet[18] = 0;
         packet[19] = 3;
         let info = firewall::parse_packet_info(&packet).unwrap();
-        assert_eq!(info.dst_ip, Ipv4Addr::new(100, 64, 0, 3));
+        assert_eq!(info.dst_ip, Ipv4Addr::new(10, 64, 0, 3));
         assert_eq!(info.protocol, 6);
     }
 
@@ -705,15 +705,15 @@ mod tests {
     /// Mesh address the test packets are sourced from; passed to
     /// `evaluate_inbound` as the sending peer's assigned IP so the ingress
     /// anti-spoof check passes.
-    const TEST_V4: Ipv4Addr = Ipv4Addr::new(100, 64, 0, 5);
+    const TEST_V4: Ipv4Addr = Ipv4Addr::new(10, 64, 0, 5);
     const TEST_V6: Ipv6Addr = Ipv6Addr::UNSPECIFIED;
 
     fn make_tcp_packet(dst_port: u16) -> Vec<u8> {
         let mut p = vec![0u8; 24];
         p[0] = 0x45; // IPv4, IHL=5
         p[9] = 6; // TCP
-        p[12..16].copy_from_slice(&[100, 64, 0, 5]); // src ip (TEST_V4)
-        p[16..20].copy_from_slice(&[100, 64, 0, 3]); // dst ip
+        p[12..16].copy_from_slice(&[10, 64, 0, 5]); // src ip (TEST_V4)
+        p[16..20].copy_from_slice(&[10, 64, 0, 3]); // dst ip
         p[20] = 0;
         p[21] = 80; // src port 80
         p[22] = (dst_port >> 8) as u8;
@@ -804,8 +804,8 @@ mod tests {
         let mut pkt = vec![0u8; 28];
         pkt[0] = 0x45; // IPv4, IHL=5
         pkt[9] = 1; // ICMP
-        pkt[12..16].copy_from_slice(&[100, 64, 0, 5]); // src ip (TEST_V4)
-        pkt[16..20].copy_from_slice(&[100, 64, 0, 3]); // dst ip
+        pkt[12..16].copy_from_slice(&[10, 64, 0, 5]); // src ip (TEST_V4)
+        pkt[16..20].copy_from_slice(&[10, 64, 0, 3]); // dst ip
         assert!(matches!(
             evaluate_inbound(&pkt, &fw, &peer, TEST_V4, TEST_V6, "test-net"),
             InboundDecision::Accept
@@ -842,7 +842,7 @@ mod tests {
         // (e.g. the headless daemon build) may seed it first, making our
         // `init_ssh_nat` a no-op. Read the addresses the NAT actually holds and
         // build the packet from those, so the test is independent of run order.
-        init_ssh_nat(Ipv4Addr::new(100, 88, 0, 1), Ipv6Addr::LOCALHOST, 41384);
+        init_ssh_nat(Ipv4Addr::new(10, 88, 0, 1), Ipv6Addr::LOCALHOST, 41384);
         set_ssh_nat_active(true);
         let (our_v4, listen_port) = {
             let nat = ssh_nat().expect("nat active");
@@ -897,14 +897,14 @@ mod tests {
         // it, even when the firewall would otherwise allow it.
         let peer = iroh::SecretKey::generate().public();
         let fw = inbound_fw(Action::Allow, vec![]);
-        let pkt = make_tcp_packet(80); // sourced from TEST_V4 (100.64.0.5)
+        let pkt = make_tcp_packet(80); // sourced from TEST_V4 (10.64.0.5)
         // Same packet, but the peer is supposedly assigned a different IP.
         assert!(matches!(
             evaluate_inbound(
                 &pkt,
                 &fw,
                 &peer,
-                Ipv4Addr::new(100, 64, 0, 9),
+                Ipv4Addr::new(10, 64, 0, 9),
                 TEST_V6,
                 "test-net"
             ),
@@ -920,7 +920,7 @@ mod tests {
     #[test]
     fn magic_dns_predicate_matches_only_magic_ip_port_53() {
         let mk = |ip: IpAddr, port: u16| firewall::PacketInfo {
-            src_ip: "100.64.0.5".parse().unwrap(),
+            src_ip: "10.64.0.5".parse().unwrap(),
             dst_ip: ip,
             protocol: 17,
             src_port: 50000,
@@ -931,7 +931,7 @@ mod tests {
         };
         assert!(is_magic_dns(&mk(IpAddr::V4(crate::dns::MAGIC_DNS_V4), 53)));
         assert!(!is_magic_dns(&mk(IpAddr::V4(crate::dns::MAGIC_DNS_V4), 80)));
-        assert!(!is_magic_dns(&mk("100.64.0.9".parse().unwrap(), 53)));
+        assert!(!is_magic_dns(&mk("10.64.0.9".parse().unwrap(), 53)));
     }
 
     #[test]

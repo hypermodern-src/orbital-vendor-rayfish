@@ -1,7 +1,8 @@
 //! Network membership management: identity, IP derivation, member/approved lists, and policies.
 //!
 //! Virtual IPs are deterministically derived from [`EndpointId`] via FNV-1a hashing
-//! into the 100.64.0.0/10 CGNAT range (22-bit host space, ~4M addresses).
+//! into the 10.64.0.0/10 range (22-bit host space, ~4M addresses). straylight fork:
+//! moved off 100.64.0.0/10 (Tailscale's CGNAT block) so both meshes coexist.
 
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::fmt;
@@ -272,7 +273,7 @@ pub trait IdentityProvider: Send + Sync {
 }
 
 /// Derives a deterministic virtual IP from an [`EndpointId`] using FNV-1a.
-/// Always produces an address in the 100.64.0.0/10 range, avoiding .0 and .1
+/// Always produces an address in the 10.64.0.0/10 range, avoiding .0 and .1
 /// (network address and TUN gateway).
 pub fn derive_ip(identity: &EndpointId) -> Ipv4Addr {
     derive_ip_with_index(identity, 0)
@@ -294,7 +295,7 @@ pub fn derive_ip_with_index(identity: &EndpointId, index: u32) -> Ipv4Addr {
         hash = hash.wrapping_mul(16_777_619); // FNV-1a prime
     }
 
-    let base: u32 = 0x6440_0000; // 100.64.0.0
+    let base: u32 = 0x0A40_0000; // 10.64.0.0
     let host_bits = hash & 0x003F_FFFF; // lower 22 bits
     // Reserve 0 (network) and 1 (TUN gateway)
     let host_bits = if host_bits <= 1 {
@@ -603,18 +604,23 @@ pub fn resolve_ip_tiebreak(mut members: Vec<Member>) -> Vec<Member> {
     list.all().into_iter().cloned().collect()
 }
 
-/// Whether `ip` is a rayfish overlay address: the IPv4 CGNAT range `100.64.0.0/10`
+/// Whether `ip` is a rayfish overlay address: the IPv4 range `10.64.0.0/10`
 /// or the IPv6 `200::/7` range that mesh IPs are derived into (see
 /// [`derive_ip`]/[`derive_ipv6`]). Used to keep the overlay's own addresses out of
 /// iroh's advertised transport candidates, so the tunnel is never asked to route
 /// over itself (a self-looping path that flaps open/closed and can cascade into
 /// spurious roster evictions).
+///
+/// straylight fork: the v4 overlay was moved off the `100.64.0.0/10` CGNAT block
+/// (which Tailscale claims) to `10.64.0.0/10` so rayfish coexists with a live
+/// tailnet on the same host — a fallback mesh for boxes with no IPMI. The
+/// `(octet1 & 0xC0) == 64` structure is preserved; only the first octet changed.
 pub fn is_overlay_ip(ip: IpAddr) -> bool {
     match ip {
-        // 100.64.0.0/10: first octet 100, top two bits of the second octet == 01.
+        // 10.64.0.0/10: first octet 10, top two bits of the second octet == 01.
         IpAddr::V4(v4) => {
             let o = v4.octets();
-            o[0] == 100 && (o[1] & 0xC0) == 64
+            o[0] == 10 && (o[1] & 0xC0) == 64
         }
         // 200::/7: the top 7 bits of the first hextet are `0000001`.
         IpAddr::V6(v6) => (v6.segments()[0] & 0xfe00) == 0x0200,
@@ -624,8 +630,8 @@ pub fn is_overlay_ip(ip: IpAddr) -> bool {
 fn ensure_in_cgnat_range(ip: Ipv4Addr) -> Result<()> {
     let o = ip.octets();
     anyhow::ensure!(
-        o[0] == 100 && (o[1] & 0xC0) == 64,
-        "ip {} is outside the 100.64.0.0/10 CGNAT range",
+        o[0] == 10 && (o[1] & 0xC0) == 64,
+        "ip {} is outside the 10.64.0.0/10 overlay range",
         ip,
     );
     anyhow::ensure!(
@@ -696,13 +702,13 @@ mod tests {
 
     #[test]
     fn overlay_ip_covers_mesh_ranges_only() {
-        // IPv4 CGNAT 100.64.0.0/10 (the whole /10, not just Tailscale's usage).
-        assert!(is_overlay_ip("100.64.0.1".parse().unwrap()));
-        assert!(is_overlay_ip("100.127.255.255".parse().unwrap()));
+        // IPv4 overlay 10.64.0.0/10 (straylight fork range; the whole /10).
+        assert!(is_overlay_ip("10.64.0.1".parse().unwrap()));
+        assert!(is_overlay_ip("10.127.255.255".parse().unwrap()));
         assert!(is_overlay_ip(IpAddr::V4(derive_ip(&test_id(9)))));
         // Just outside the /10 on either side.
-        assert!(!is_overlay_ip("100.63.255.255".parse().unwrap()));
-        assert!(!is_overlay_ip("100.128.0.0".parse().unwrap()));
+        assert!(!is_overlay_ip("10.63.255.255".parse().unwrap()));
+        assert!(!is_overlay_ip("10.128.0.0".parse().unwrap()));
         // Ordinary underlay addresses pass through.
         assert!(!is_overlay_ip("192.168.1.104".parse().unwrap()));
         assert!(!is_overlay_ip("51.15.139.151".parse().unwrap()));
@@ -727,7 +733,7 @@ mod tests {
         let id = test_id(1);
         let ip = derive_ip(&id);
         let octets = ip.octets();
-        assert_eq!(octets[0], 100);
+        assert_eq!(octets[0], 10);
         assert!(octets[1] >= 64 && octets[1] <= 127);
     }
 
@@ -740,8 +746,8 @@ mod tests {
 
     #[test]
     fn test_derive_ip_avoids_reserved() {
-        let reserved1 = Ipv4Addr::new(100, 64, 0, 0);
-        let reserved2 = Ipv4Addr::new(100, 64, 0, 1);
+        let reserved1 = Ipv4Addr::new(10, 64, 0, 0);
+        let reserved2 = Ipv4Addr::new(10, 64, 0, 1);
         for i in 0..=255u8 {
             let ip = derive_ip(&test_id(i));
             assert_ne!(ip, reserved1);
@@ -797,7 +803,7 @@ mod tests {
 
         let ip = provider.local_ip();
         let octets = ip.octets();
-        assert_eq!(octets[0], 100);
+        assert_eq!(octets[0], 10);
         assert!(octets[1] >= 64 && octets[1] <= 127);
 
         let id = provider.local_identity();
@@ -810,7 +816,7 @@ mod tests {
         let mut list = MemberList::new();
         let member = Member {
             identity: id,
-            ip: Ipv4Addr::new(100, 64, 10, 5),
+            ip: Ipv4Addr::new(10, 64, 10, 5),
             is_coordinator: false,
             hostname: None,
             user_identity: None,
@@ -821,7 +827,7 @@ mod tests {
         list.add(member.clone()).unwrap();
         assert!(list.is_member(&id));
         assert!(!list.is_member(&test_id(2)));
-        assert_eq!(list.get(&id).unwrap().ip, Ipv4Addr::new(100, 64, 10, 5));
+        assert_eq!(list.get(&id).unwrap().ip, Ipv4Addr::new(10, 64, 10, 5));
     }
 
     #[test]
@@ -830,7 +836,7 @@ mod tests {
         let mut list = MemberList::new();
         let member = Member {
             identity: id,
-            ip: Ipv4Addr::new(100, 64, 10, 5),
+            ip: Ipv4Addr::new(10, 64, 10, 5),
             is_coordinator: false,
             hostname: None,
             user_identity: None,
@@ -839,9 +845,9 @@ mod tests {
             last_seen: None,
         };
         list.add(member).unwrap();
-        let found = list.get_by_ip(Ipv4Addr::new(100, 64, 10, 5)).unwrap();
+        let found = list.get_by_ip(Ipv4Addr::new(10, 64, 10, 5)).unwrap();
         assert_eq!(found.identity, id);
-        assert!(list.get_by_ip(Ipv4Addr::new(100, 64, 10, 6)).is_none());
+        assert!(list.get_by_ip(Ipv4Addr::new(10, 64, 10, 6)).is_none());
     }
 
     #[test]
@@ -849,7 +855,7 @@ mod tests {
         let mut list = MemberList::new();
         list.add(Member {
             identity: test_id(1),
-            ip: Ipv4Addr::new(100, 64, 10, 5),
+            ip: Ipv4Addr::new(10, 64, 10, 5),
             is_coordinator: false,
             hostname: None,
             user_identity: None,
@@ -860,7 +866,7 @@ mod tests {
         .unwrap();
         let result = list.add(Member {
             identity: test_id(2),
-            ip: Ipv4Addr::new(100, 64, 10, 5),
+            ip: Ipv4Addr::new(10, 64, 10, 5),
             is_coordinator: false,
             hostname: None,
             user_identity: None,
@@ -877,7 +883,7 @@ mod tests {
         let mut list = MemberList::new();
         list.add(Member {
             identity: id,
-            ip: Ipv4Addr::new(100, 64, 10, 5),
+            ip: Ipv4Addr::new(10, 64, 10, 5),
             is_coordinator: false,
             hostname: None,
             user_identity: None,
@@ -888,7 +894,7 @@ mod tests {
         .unwrap();
         list.add(Member {
             identity: id,
-            ip: Ipv4Addr::new(100, 64, 10, 5),
+            ip: Ipv4Addr::new(10, 64, 10, 5),
             is_coordinator: true,
             hostname: None,
             user_identity: None,
@@ -906,7 +912,7 @@ mod tests {
         let mut list = MemberList::new();
         list.add(Member {
             identity: id,
-            ip: Ipv4Addr::new(100, 64, 10, 5),
+            ip: Ipv4Addr::new(10, 64, 10, 5),
             is_coordinator: false,
             hostname: None,
             user_identity: None,
@@ -926,7 +932,7 @@ mod tests {
         let mut list = MemberList::new();
         list.add(Member {
             identity: test_id(1),
-            ip: Ipv4Addr::new(100, 64, 0, 2),
+            ip: Ipv4Addr::new(10, 64, 0, 2),
             is_coordinator: true,
             hostname: None,
             user_identity: None,
@@ -937,7 +943,7 @@ mod tests {
         .unwrap();
         list.add(Member {
             identity: test_id(2),
-            ip: Ipv4Addr::new(100, 64, 0, 3),
+            ip: Ipv4Addr::new(10, 64, 0, 3),
             is_coordinator: false,
             hostname: None,
             user_identity: None,
@@ -955,7 +961,7 @@ mod tests {
         let mut list = ApprovedList::new();
         let entry = ApprovedEntry {
             identity: id,
-            ip: Ipv4Addr::new(100, 64, 5, 10),
+            ip: Ipv4Addr::new(10, 64, 5, 10),
             hostname: None,
             user_identity: None,
             device_cert: None,
@@ -974,7 +980,7 @@ mod tests {
         members
             .add(Member {
                 identity: test_id(1),
-                ip: Ipv4Addr::new(100, 64, 5, 10),
+                ip: Ipv4Addr::new(10, 64, 5, 10),
                 is_coordinator: false,
                 hostname: None,
                 user_identity: None,
@@ -985,7 +991,7 @@ mod tests {
             .unwrap();
         let entry = ApprovedEntry {
             identity: test_id(2),
-            ip: Ipv4Addr::new(100, 64, 5, 10),
+            ip: Ipv4Addr::new(10, 64, 5, 10),
             hostname: None,
             user_identity: None,
             device_cert: None,
@@ -1002,7 +1008,7 @@ mod tests {
             .approve(
                 ApprovedEntry {
                     identity: test_id(1),
-                    ip: Ipv4Addr::new(100, 64, 5, 10),
+                    ip: Ipv4Addr::new(10, 64, 5, 10),
                     hostname: None,
                     user_identity: None,
                     device_cert: None,
@@ -1014,7 +1020,7 @@ mod tests {
         let result = approved.approve(
             ApprovedEntry {
                 identity: test_id(2),
-                ip: Ipv4Addr::new(100, 64, 5, 10),
+                ip: Ipv4Addr::new(10, 64, 5, 10),
                 hostname: None,
                 user_identity: None,
                 device_cert: None,
@@ -1034,7 +1040,7 @@ mod tests {
             .approve(
                 ApprovedEntry {
                     identity: id,
-                    ip: Ipv4Addr::new(100, 64, 5, 10),
+                    ip: Ipv4Addr::new(10, 64, 5, 10),
                     hostname: None,
                     user_identity: None,
                     device_cert: None,
@@ -1047,7 +1053,7 @@ mod tests {
             .approve(
                 ApprovedEntry {
                     identity: id,
-                    ip: Ipv4Addr::new(100, 64, 5, 10),
+                    ip: Ipv4Addr::new(10, 64, 5, 10),
                     hostname: None,
                     user_identity: None,
                     device_cert: None,
@@ -1068,7 +1074,7 @@ mod tests {
             .approve(
                 ApprovedEntry {
                     identity: id,
-                    ip: Ipv4Addr::new(100, 64, 5, 10),
+                    ip: Ipv4Addr::new(10, 64, 5, 10),
                     hostname: None,
                     user_identity: None,
                     device_cert: None,
@@ -1087,7 +1093,7 @@ mod tests {
         let entries = vec![
             ApprovedEntry {
                 identity: test_id(1),
-                ip: Ipv4Addr::new(100, 64, 0, 2),
+                ip: Ipv4Addr::new(10, 64, 0, 2),
                 hostname: None,
                 user_identity: None,
                 device_cert: None,
@@ -1095,7 +1101,7 @@ mod tests {
             },
             ApprovedEntry {
                 identity: test_id(2),
-                ip: Ipv4Addr::new(100, 64, 0, 3),
+                ip: Ipv4Addr::new(10, 64, 0, 3),
                 hostname: None,
                 user_identity: None,
                 device_cert: None,
@@ -1154,7 +1160,7 @@ mod tests {
         assert_eq!(list.resolve_peer_literal(&user.to_string()), Some(device));
 
         // Non-member IP, an unrelated identity, and junk all miss.
-        assert_eq!(list.resolve_peer_literal("100.64.0.1"), None);
+        assert_eq!(list.resolve_peer_literal("10.64.0.1"), None);
         assert_eq!(list.resolve_peer_literal(&test_id(99).to_string()), None);
         assert_eq!(list.resolve_peer_literal("not-a-peer"), None);
     }
@@ -1690,7 +1696,7 @@ mod tests {
         let id = test_id(7);
         let member = Member {
             identity: id,
-            ip: Ipv4Addr::new(100, 64, 10, 5), // does NOT equal derive_ip(test_id(7))
+            ip: Ipv4Addr::new(10, 64, 10, 5), // does NOT equal derive_ip(test_id(7))
             is_coordinator: false,
             hostname: None,
             user_identity: None,
@@ -1724,7 +1730,7 @@ mod tests {
         let id = test_id(7);
         let net = Member {
             identity: id,
-            ip: Ipv4Addr::new(100, 64, 0, 0),
+            ip: Ipv4Addr::new(10, 64, 0, 0),
             is_coordinator: false,
             hostname: None,
             user_identity: None,
@@ -1734,7 +1740,7 @@ mod tests {
         };
         let gw = Member {
             identity: id,
-            ip: Ipv4Addr::new(100, 64, 0, 1),
+            ip: Ipv4Addr::new(10, 64, 0, 1),
             is_coordinator: false,
             hostname: None,
             user_identity: None,
@@ -1751,7 +1757,7 @@ mod tests {
         let id = test_id(9);
         let entry = ApprovedEntry {
             identity: id,
-            ip: Ipv4Addr::new(100, 64, 99, 99),
+            ip: Ipv4Addr::new(10, 64, 99, 99),
             hostname: None,
             user_identity: None,
             device_cert: None,
@@ -1791,7 +1797,7 @@ mod tests {
         let id = test_id(1);
         let bad_member = Member {
             identity: id,
-            ip: Ipv4Addr::new(100, 64, 10, 5), // not derive_ip(test_id(1))
+            ip: Ipv4Addr::new(10, 64, 10, 5), // not derive_ip(test_id(1))
             is_coordinator: false,
             hostname: None,
             user_identity: None,
@@ -1817,7 +1823,7 @@ mod tests {
         let id = test_id(2);
         let bad_member = Member {
             identity: id,
-            ip: Ipv4Addr::new(100, 64, 0, 1), // TUN gateway
+            ip: Ipv4Addr::new(10, 64, 0, 1), // TUN gateway
             is_coordinator: false,
             hostname: None,
             user_identity: None,
@@ -1995,7 +2001,7 @@ mod tests {
         // The predicate test isolates the guard: it fails if anyone removes the
         // magic DNS IP from the reserved set, independent of IP-derivation.
         assert!(is_reserved_ipv4(crate::dns::MAGIC_DNS_V4));
-        assert!(!is_reserved_ipv4(Ipv4Addr::new(100, 64, 0, 7)));
+        assert!(!is_reserved_ipv4(Ipv4Addr::new(10, 64, 0, 7)));
     }
 
     #[test]
