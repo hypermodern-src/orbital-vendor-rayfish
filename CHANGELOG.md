@@ -25,6 +25,14 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- **Nix flake for reproducible builds.** `nix build` produces the `ray` binary
+  from a pinned toolchain (fenix `1.91.0`, edition 2024) and Cargo-locked
+  dependencies — including the `iroh` fork — with no network access at build
+  time, so a nixpkgs bump can't silently move the compiler. `nix develop` drops
+  you into a dev shell with the toolchain plus `just`, `cargo-nextest`,
+  `cargo-cross`, and `cargo-ndk`; `nix flake check` runs the build, tests,
+  `clippy` (across the `desktop`/`tor`/`otel` feature surfaces), docs, and
+  `treefmt`.
 - **Static musl Linux binaries.** Every release and nightly now also ships
   `ray-linux-{x86_64,aarch64}-musl`: fully static builds with no glibc dependency
   that run on any Linux, including musl distros (Alpine) and hosts with a glibc

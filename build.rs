@@ -9,16 +9,26 @@
 use std::process::Command;
 
 fn main() {
-    let sha = Command::new("git")
-        .args(["rev-parse", "--short=8", "HEAD"])
-        .output()
+    // Prefer an externally supplied SHA (e.g. the Nix build feeds the flake's
+    // rev, since `git` isn't available in the sandbox), then fall back to
+    // `git rev-parse`, then to "unknown" out of a checkout without git.
+    let sha = std::env::var("RAY_GIT_SHA")
         .ok()
-        .filter(|o| o.status.success())
-        .and_then(|o| String::from_utf8(o.stdout).ok())
         .map(|s| s.trim().to_string())
         .filter(|s| !s.is_empty())
+        .or_else(|| {
+            Command::new("git")
+                .args(["rev-parse", "--short=8", "HEAD"])
+                .output()
+                .ok()
+                .filter(|o| o.status.success())
+                .and_then(|o| String::from_utf8(o.stdout).ok())
+                .map(|s| s.trim().to_string())
+                .filter(|s| !s.is_empty())
+        })
         .unwrap_or_else(|| "unknown".to_string());
 
+    println!("cargo:rerun-if-env-changed=RAY_GIT_SHA");
     println!("cargo:rustc-env=RAY_GIT_SHA={sha}");
 
     // Rebuild when HEAD moves so the stamp stays current. `.git/HEAD` covers
